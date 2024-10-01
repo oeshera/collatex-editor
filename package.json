@@ -1,0 +1,46 @@
+{
+  "name": "collatex-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/modifiers": "^7.0.0",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/icons-material": "^6.1.1",
+    "@mui/material": "^6.1.1",
+    "@mui/x-date-pickers": "^7.17.0",
+    "@redux-devtools/extension": "^3.3.0",
+    "@tanstack/react-form": "^0.33.0",
+    "@tanstack/react-router": "^1.58.3",
+    "@tanstack/zod-form-adapter": "^0.33.0",
+    "material-react-table": "^3.0.1",
+    "mui-file-input": "^6.0.0",
+    "notistack": "^3.0.1",
+    "react": "latest",
+    "react-dom": "latest",
+    "stylis-plugin-rtl": "^2.1.1",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.0-rc.2"
+  },
+  "devDependencies": {
+    "@tanstack/router-devtools": "^1.58.3",
+    "@tanstack/router-plugin": "^1.58.4",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/stylis": "^4.2.6",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  },
+  "homepage": "https://collatex-editor.github.io"
+}
