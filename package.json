@@ -41,6 +41,5 @@
     "@vitejs/plugin-react": "latest",
     "typescript": "latest",
     "vite": "latest"
-  },
-  "homepage": "https://collatex-editor.github.io"
+  }
 }
