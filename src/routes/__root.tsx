@@ -4,6 +4,7 @@ import {
   Outlet,
   ScrollRestoration,
 } from "@tanstack/react-router";
+import { ConfirmProvider } from "material-ui-confirm";
 import { SnackbarProvider } from "notistack";
 import * as React from "react";
 import Footer from "../components/Footer";
@@ -28,22 +29,24 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <ThemeProvider>
-      <SnackbarProvider>
-        <CssBaseline />
-        <Box
-          sx={{
-            display: "flex",
-            minHeight: "100vh",
-            flexDirection: "column",
-          }}
-        >
-          <Box sx={{ width: "100%", height: "100%", flex: 1, p: 3 }}>
-            <Outlet />
+      <ConfirmProvider>
+        <SnackbarProvider>
+          <CssBaseline />
+          <Box
+            sx={{
+              display: "flex",
+              minHeight: "100vh",
+              flexDirection: "column",
+            }}
+          >
+            <Box sx={{ width: "100%", height: "100%", flex: 1, p: 3 }}>
+              <Outlet />
+            </Box>
+            <Footer />
           </Box>
-          <Footer />
-        </Box>
-        <ScrollRestoration />
-      </SnackbarProvider>
+          <ScrollRestoration />
+        </SnackbarProvider>
+      </ConfirmProvider>
       <React.Suspense>
         <TanStackRouterDevtools />
       </React.Suspense>

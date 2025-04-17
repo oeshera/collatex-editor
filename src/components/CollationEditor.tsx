@@ -22,6 +22,7 @@ import {
   Delete,
   DeleteForever,
   Download,
+  Edit,
   FirstPage,
   LastPage,
   NavigateBefore,
@@ -34,6 +35,10 @@ import {
   Breadcrumbs,
   Button,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
@@ -41,16 +46,20 @@ import {
   Link,
   ListItemIcon,
   ListItemText,
+  Menu,
   MenuItem,
   Radio,
   RadioGroup,
+  TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
 import {
   Navigate,
   Link as RouterLink,
   useNavigate,
 } from "@tanstack/react-router";
+import { githubDarkTheme, githubLightTheme, JsonEditor } from "json-edit-react";
 import {
   MaterialReactTable,
   useMaterialReactTable,
@@ -60,6 +69,14 @@ import {
   type MRT_ColumnVirtualizer,
   type MRT_RowVirtualizer,
 } from "material-react-table";
+import { useConfirm } from "material-ui-confirm";
+import {
+  bindContextMenu,
+  bindDialog,
+  bindMenu,
+  bindTrigger,
+  usePopupState,
+} from "material-ui-popup-state/hooks";
 import { enqueueSnackbar } from "notistack";
 import * as React from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -87,7 +104,7 @@ const getReactTableData = (alignmentTable: Table): Row[] => {
           collatexEditorTokenOrder: tokenOrder++,
           collatexEditorTokenRow: rowIndex,
           collatexEditorTokenCol: colIndex,
-          collatexEditorTokenId: uuidv4(),
+          collatexEditorTokenId: t.collatexEditorTokenId || uuidv4(),
         })))
     );
     return d;
@@ -145,28 +162,203 @@ function DraggableToken(
     {
       id: string;
       data: Token;
+      onDelete: (token: Token) => void;
+      onUpdate: (originalToken: Token, updatedToken: Token) => void;
+      onInsertTokens: (
+        token: Token,
+        direction: "left" | "right",
+        newTokens: Token[]
+      ) => void;
     } & React.DetailedHTMLProps<
       React.HTMLAttributes<HTMLDivElement>,
       HTMLDivElement
     >
   >
 ) {
-  const { id, children, data, ...other } = props;
+  const { id, children, data, onDelete, onUpdate, onInsertTokens, ...other } =
+    props;
   const { attributes, listeners, setNodeRef } = useDraggable({
     id,
     data,
   });
 
+  const theme = useTheme();
+  const confirm = useConfirm();
+
+  const contextMenuState = usePopupState({
+    variant: "popover",
+    popupId: "tokenContextMenu",
+  });
+
+  const editDialogState = usePopupState({
+    variant: "dialog",
+    popupId: "tokenEditDialog",
+  });
+
+  const insertTokenDialogState = usePopupState({
+    variant: "dialog",
+    popupId: "insertTokenDialog",
+  });
+
+  const [editedToken, setEditedToken] = React.useState<Token>(data);
+  const [insertDirection, setInsertDirection] = React.useState<
+    "left" | "right"
+  >("right");
+  const [tokenText, setTokenText] = React.useState("");
+
+  React.useEffect(() => {
+    if (editDialogState.isOpen) {
+      setEditedToken(data);
+    }
+  }, [editDialogState.isOpen, data]);
+
+  const handleInsertTokens = () => {
+    if (tokenText.trim().length === 0) {
+      enqueueSnackbar("Token text cannot be empty", { variant: "error" });
+      return;
+    }
+
+    const tokens = tokenText
+      .trim()
+      .split(/\s+/)
+      .map((t) => ({
+        t: t,
+        collatexEditorTokenRow: data.collatexEditorTokenRow,
+        collatexEditorTokenCol: data.collatexEditorTokenCol,
+        collatexEditorTokenId: uuidv4(),
+      }));
+
+    onInsertTokens(data, insertDirection, tokens);
+    insertTokenDialogState.close();
+    setTokenText("");
+  };
+
   return (
-    <span
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      {...other}
-      tabIndex={-1}
-    >
-      {children}
-    </span>
+    <>
+      <div {...bindContextMenu(contextMenuState)}>
+        <span
+          ref={setNodeRef}
+          {...listeners}
+          {...attributes}
+          {...other}
+          tabIndex={-1}
+        >
+          {children}
+        </span>
+      </div>
+      <Menu {...bindMenu(contextMenuState)}>
+        <MenuItem {...bindTrigger(editDialogState)}>
+          <ListItemIcon>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setInsertDirection("right");
+            insertTokenDialogState.open();
+            contextMenuState.close();
+          }}
+        >
+          <ListItemIcon>
+            <ArrowForward fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Insert tokens right</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setInsertDirection("left");
+            insertTokenDialogState.open();
+            contextMenuState.close();
+          }}
+        >
+          <ListItemIcon>
+            <ArrowBack fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Insert tokens left</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={async () => {
+            const { confirmed } = await confirm({
+              description: "This action is permanent!",
+            });
+
+            if (confirmed) {
+              onDelete(data);
+            }
+
+            contextMenuState.close();
+          }}
+        >
+          <ListItemIcon>
+            <Delete fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+      <Dialog {...bindDialog(editDialogState)}>
+        <DialogTitle>{"Edit Token"}</DialogTitle>
+        <DialogContent>
+          <JsonEditor
+            data={editedToken}
+            setData={(newTokenData) => {
+              setEditedToken(newTokenData as Token);
+              onUpdate(data, newTokenData as Token);
+            }}
+            theme={
+              theme.palette.mode === "dark" ? githubDarkTheme : githubLightTheme
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              contextMenuState.close();
+              editDialogState.close();
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog fullWidth {...bindDialog(insertTokenDialogState)}>
+        <DialogTitle>
+          {`Insert tokens ${insertDirection === "right" ? "right" : "left"}`}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Enter one or more tokens separated by whitespace:
+          </Typography>
+          <FormControl fullWidth>
+            <TextField
+              autoFocus
+              value={tokenText}
+              onChange={(e) => setTokenText(e.target.value)}
+              label="Token text"
+              fullWidth
+              variant="outlined"
+              error={tokenText.trim().length === 0}
+              helperText={
+                tokenText.trim().length === 0
+                  ? "Minimum 1 character required"
+                  : ""
+              }
+            />
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => insertTokenDialogState.close()}>Cancel</Button>
+          <Button
+            onClick={handleInsertTokens}
+            disabled={tokenText.trim().length === 0}
+          >
+            Insert
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -255,6 +447,116 @@ export default function CollationEditor({ id }: { id: Collation["id"] }) {
       });
     },
     [collation]
+  );
+
+  const handleUpdateToken = React.useCallback(
+    (originalToken: Token, updatedToken: Token) => {
+      // Get the token's row and column
+      const tokenRow = originalToken.collatexEditorTokenRow as number;
+      const tokenCol = originalToken.collatexEditorTokenCol as number;
+      const tokenId = originalToken.collatexEditorTokenId as string;
+
+      // Create a new data array by copying the current data
+      const newData = [...data];
+
+      // Find and update the token
+      newData[tokenRow][tokenCol] = newData[tokenRow][tokenCol].map((token) =>
+        token.collatexEditorTokenId === tokenId
+          ? { ...token, ...updatedToken }
+          : token
+      );
+
+      // Update the data
+      handleUpdateData(newData);
+
+      // Show success message
+      enqueueSnackbar("Token updated successfully", { variant: "success" });
+    },
+    [data, handleUpdateData]
+  );
+
+  const handleDeleteToken = React.useCallback(
+    (tokenToDelete: Token) => {
+      // Get the token's row and column
+      const tokenRow = tokenToDelete.collatexEditorTokenRow as number;
+      const tokenCol = tokenToDelete.collatexEditorTokenCol as number;
+      const tokenId = tokenToDelete.collatexEditorTokenId as string;
+
+      // Create a new data array by copying the current data
+      const newData = [...data];
+
+      // Filter out the token to delete from the specific cell
+      newData[tokenRow][tokenCol] = newData[tokenRow][tokenCol].filter(
+        (token) => token.collatexEditorTokenId !== tokenId
+      );
+
+      // Update the data
+      handleUpdateData(newData);
+      enqueueSnackbar("Token Deleted!", { variant: "success" });
+    },
+    [data, handleUpdateData]
+  );
+
+  const handleInsertTokens = React.useCallback(
+    (originalToken: Token, direction: "left" | "right", newTokens: Token[]) => {
+      // Get the token's row and column
+      const tokenRow = originalToken.collatexEditorTokenRow as number;
+      const tokenCol = originalToken.collatexEditorTokenCol as number;
+      const tokenId = originalToken.collatexEditorTokenId as string;
+
+      // Create a new data array by copying the current data
+      const newData = [...data];
+
+      // Find the index of the original token in the cell
+      const cellTokens = newData[tokenRow][tokenCol];
+      const tokenIndex = cellTokens.findIndex(
+        (t) => t.collatexEditorTokenId === tokenId
+      );
+
+      if (tokenIndex === -1) {
+        // Token not found, just return
+        return;
+      }
+
+      // Reorder tokens based on their positions
+      let tokenOrder = -1;
+      for (let col = 0; col < numCols; col++) {
+        newData[tokenRow][col] = newData[tokenRow][col].map((t) => ({
+          ...t,
+          collatexEditorTokenOrder: tokenOrder++,
+        }));
+      }
+
+      // Insert the new tokens at the correct position
+      const insertIndex = direction === "right" ? tokenIndex + 1 : tokenIndex;
+
+      // Update the token order for the new tokens
+      const baseOrder = cellTokens[tokenIndex]
+        .collatexEditorTokenOrder as number;
+      const updatedNewTokens = newTokens.map((token, idx) => ({
+        ...token,
+        collatexEditorTokenOrder:
+          direction === "right"
+            ? baseOrder + 1 + idx
+            : baseOrder - newTokens.length + idx,
+      }));
+
+      // Insert the new tokens
+      newData[tokenRow][tokenCol] = [
+        ...cellTokens.slice(0, insertIndex),
+        ...updatedNewTokens,
+        ...cellTokens.slice(insertIndex),
+      ];
+
+      // Update the data
+      handleUpdateData(newData);
+
+      // Show success message
+      enqueueSnackbar(`${newTokens.length} token(s) inserted ${direction}`, {
+        variant: "success",
+      });
+    },
+    [data, handleUpdateData, numCols]
   );
 
   React.useEffect(() => {
@@ -389,6 +691,9 @@ export default function CollationEditor({ id }: { id: Collation["id"] }) {
                     id={c.collatexEditorTokenId as string}
                     key={d}
                     data={c}
+                    onUpdate={handleUpdateToken}
+                    onDelete={handleDeleteToken}
+                    onInsertTokens={handleInsertTokens}
                   >
                     <TableToken token={c} />
                   </DraggableToken>,
