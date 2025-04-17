@@ -169,14 +169,24 @@ function DraggableToken(
         direction: "left" | "right",
         newTokens: Token[]
       ) => void;
+      isRtl: boolean;
     } & React.DetailedHTMLProps<
       React.HTMLAttributes<HTMLDivElement>,
       HTMLDivElement
     >
   >
 ) {
-  const { id, children, data, onDelete, onUpdate, onInsertTokens, ...other } =
-    props;
+  const {
+    id,
+    children,
+    data,
+    onDelete,
+    onUpdate,
+    onInsertTokens,
+    isRtl,
+    ...other
+  } = props;
+
   const { attributes, listeners, setNodeRef } = useDraggable({
     id,
     data,
@@ -332,20 +342,22 @@ function DraggableToken(
             Enter one or more tokens separated by whitespace:
           </Typography>
           <FormControl fullWidth>
-            <TextField
-              autoFocus
-              value={tokenText}
-              onChange={(e) => setTokenText(e.target.value)}
-              label="Token text"
-              fullWidth
-              variant="outlined"
-              error={tokenText.trim().length === 0}
-              helperText={
-                tokenText.trim().length === 0
-                  ? "Minimum 1 character required"
-                  : ""
-              }
-            />
+            <DirWrapper isRtl={isRtl}>
+              <TextField
+                autoFocus
+                value={tokenText}
+                onChange={(e) => setTokenText(e.target.value)}
+                label="Token text"
+                fullWidth
+                variant="outlined"
+                error={tokenText.trim().length === 0}
+                helperText={
+                  tokenText.trim().length === 0
+                    ? "Minimum 1 character required"
+                    : ""
+                }
+              />
+            </DirWrapper>
           </FormControl>
         </DialogContent>
         <DialogActions>
@@ -528,7 +540,13 @@ export default function CollationEditor({ id }: { id: Collation["id"] }) {
       }
 
       // Insert the new tokens at the correct position
-      const insertIndex = direction === "right" ? tokenIndex + 1 : tokenIndex;
+      const adjustedDirection = !isRtl
+        ? direction
+        : direction === "right"
+          ? "left"
+          : "right";
+      const insertIndex =
+        adjustedDirection === "right" ? tokenIndex + 1 : tokenIndex;
 
       // Update the token order for the new tokens
       const baseOrder = cellTokens[tokenIndex]
@@ -536,7 +554,7 @@ export default function CollationEditor({ id }: { id: Collation["id"] }) {
       const updatedNewTokens = newTokens.map((token, idx) => ({
         ...token,
         collatexEditorTokenOrder:
-          direction === "right"
+          adjustedDirection === "right"
             ? baseOrder + 1 + idx
             : baseOrder - newTokens.length + idx,
       }));
@@ -694,6 +712,7 @@ export default function CollationEditor({ id }: { id: Collation["id"] }) {
                     onUpdate={handleUpdateToken}
                     onDelete={handleDeleteToken}
                     onInsertTokens={handleInsertTokens}
+                    isRtl={isRtl}
                   >
                     <TableToken token={c} />
                   </DraggableToken>,
