@@ -2,6 +2,7 @@ import { Delete, Download, Edit, Upload } from "@mui/icons-material";
 import {
   Box,
   Button,
+  Dialog,
   DialogContent,
   DialogTitle,
   IconButton,
@@ -20,6 +21,7 @@ import {
 } from "material-react-table";
 import * as React from "react";
 import { Collation, useDataStore } from "../store";
+import BulkCollationForm from "./BulkCollationForm";
 import CollationForm from "./CollationForm";
 
 const Cell = ({
@@ -56,6 +58,7 @@ export default function CollationsList() {
   const data = useDataStore((state) => state.collations);
   const deleteCollation = useDataStore((state) => state.deleteCollation);
   const exportCollation = useDataStore((state) => state.exportCollation);
+  const [bulkImportDialogOpen, setBulkImportDialogOpen] = React.useState(false);
 
   const table = useMaterialReactTable({
     columns,
@@ -185,6 +188,14 @@ export default function CollationsList() {
               >
                 Import
               </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => setBulkImportDialogOpen(true)}
+                startIcon={<Upload />}
+              >
+                Bulk Import
+              </Button>
             </Box>
           </Box>
         </Box>
@@ -192,5 +203,20 @@ export default function CollationsList() {
     },
   });
 
-  return <MaterialReactTable table={table} />;
+  return (
+    <React.Fragment>
+      <MaterialReactTable table={table} />
+      <Dialog
+        open={bulkImportDialogOpen}
+        onClose={() => setBulkImportDialogOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle variant="h5">Bulk Import Collations</DialogTitle>
+        <DialogContent>
+          <BulkCollationForm closeDialog={() => setBulkImportDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </React.Fragment>
+  );
 }
